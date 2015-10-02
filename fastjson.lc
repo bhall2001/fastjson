@@ -24,11 +24,11 @@
 # Instructions
 # -------------------------------------------------------------------
 #
-# There are basically only 2 calls that you will make from your
-# Livecode scripts.
+# There are 3 calls that you will make from your Livecode scripts.
 #
 #     arrayToJson( arrayData )
-#     jsonToArray( jsonData )
+#     jsonToArray( jsonData, asUnicode, dontCheckValid)
+#     isJson ( jsonData )
 #
 # All other functions and commands in this script are for local use
 # only.
