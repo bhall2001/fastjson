@@ -7,13 +7,13 @@
 # Bob Hall
 # October 1, 2015
 #
-# By combining the best of easyjson and libjson, fastjson improves
-# the speed of encoding and decoding Livecode arrays with JSON by
-# by a significant margin.
+# By combining the best of easyjson and libjson and adding in
+# performance enhancements, fastjson improves the speed of encoding
+# and decoding Livecode arrays with JSON by by a significant margin.
 #
 # Credit goes first to Mark Smith for creating the original libjson
-# library. Igor de Oliveira Couto created the also excellent
-# easyJson library picking up where Mark left off.
+# library and to Igor de Oliveira Couto who created the also excellent
+# easyJson library.
 #
 # I am combining routines from both of these libraries to give us
 # a significant boost in performance for JSON to/from Array needs.
@@ -26,9 +26,16 @@
 #
 # There are 3 calls that you will make from your Livecode scripts.
 #
-#     arrayToJson( arrayData )
-#     jsonToArray( jsonData, asUnicode, dontCheckValid)
-#     isJson ( jsonData )
+#     arrayToJson(pArrayData)
+#     jsonToArray(pJsonData, asUnicode, skipValidation)
+#     isJson(pJsonData)
+#
+# NOTE:
+# You will also find the following for compatibilty with existing
+# easyJson scripts
+#
+#     arrayFromJson(pJsonData) (NOT TESTED)
+#     jsonFromArray(pArrayData) (NOT TESTED)
 #
 # All other functions and commands in this script are for local use
 # only.
@@ -62,16 +69,20 @@ local sOutputUnicode, sJson, sIndex, sNumTokens
 #     put jsonToArray( tJsonData, false, true ) into tArrayData
 #
 ##
-function jsonToArray pJson, asUnicode, pDontCheck
+function jsonToArray @pJson, asUnicode, pSkipValidation
    put asUnicode is true into sOutputUnicode
    put jsonToUtf8(pJson) into tJson
 
    if tJson begins with "fastJson-error" then return tJson
 
-   if pDontCheck then
+   if pSkipValidation then
       tokenize tJson
-   else if not isJson(tJson) then
-      return false
+   else
+      if not isJson(tJson) then
+         return false
+      else
+         tokenize tJson
+      end if
    end if
 
    //if the result is not empty then return the result
@@ -81,7 +92,28 @@ function jsonToArray pJson, asUnicode, pDontCheck
    return tArray
 end jsonToArray
 
-function arrayToJson pArray
+##
+#
+#  Included for compatibility with easyJson scripts
+#
+##
+function arrayFromJson @pJson
+   return jsonToArray pJson
+end arrayFromJson
+
+##
+# -------------------------------------------------------------------
+#  Array To JSON
+# -------------------------------------------------------------------
+# Convert a multi-demensional Livecode array to a valid JSON data
+# structure.
+#
+# Prototype:
+#
+#     put arrayToJson( tArrayData ) into tJsonData
+#
+##
+function arrayToJson @pArray
    if pArray is not an array then return "Parser Error: parameter given is not an array."
    local tJSON
    if isNumericalArray(pArray) then
@@ -104,6 +136,51 @@ function arrayToJson pArray
    end if
    return tJSON
 end arrayToJson
+
+##
+#
+#  Included for compatibility with easyJson scripts
+#
+##
+function jsonFromArray @pJson
+   return arrayToJson pJson
+end jsonFromArray
+
+##
+# -------------------------------------------------------------------
+#  Validate JSON data structure
+# -------------------------------------------------------------------
+# Validates a JSON data structure
+#
+#
+# Prototype:
+#
+#     if isJson( tJsonData ) then
+#        put "Valid JSON" into tTemp
+#     else
+#        put "ERROR! Not Valid JSON"
+#     end if
+#
+##
+function isJson @pJson
+
+   tokenize pJson
+
+   repeat for each element tToken in sJson
+      if tToken is in "{[" then add 1 to tDepth
+      if tToken is in "}]" then subtract 1 from tDepth
+   end repeat
+
+   if tDepth <> 0 then return false
+
+   put 2 into n
+   repeat for each element tToken in sJson
+      --repeat with n = 1 to sNumTokens - 1
+      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then return false
+   end repeat
+
+   return true
+end isJson
 
 private command tokenizeJson pJson
    put empty into sJson
@@ -389,23 +466,3 @@ private command tokenize @pJson
 
    put sIndex into sNumTokens
 end tokenize
-
-function isJson @pJson
-
-   tokenize pJson
-
-   repeat for each element tToken in sJson
-      if tToken is in "{[" then add 1 to tDepth
-      if tToken is in "}]" then subtract 1 from tDepth
-   end repeat
-
-   if tDepth <> 0 then return false
-
-   put 2 into n
-   repeat for each element tToken in sJson
-      --repeat with n = 1 to sNumTokens - 1
-      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then return false
-   end repeat
-
-   return true
-end isJson
