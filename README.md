@@ -18,7 +18,7 @@ There are 3 calls that you will make from your Livecode scripts.
       isJson(pJsonData)
 
 NOTE:
-You will also find the following for compatibilty with existing easyJson scripts
+You will also find the following for compatibility with existing easyJson scripts
 
      arrayFromJson(pJsonData) (NOT TESTED)
      jsonFromArray(pArrayData) (NOT TESTED)
