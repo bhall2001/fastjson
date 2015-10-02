@@ -5,18 +5,18 @@
 # -------------------------------------------------------------------
 #
 # Bob Hall
-# October 1, 2015
+# October 2, 2015
 #
-# By combining the best of easyjson and libjson, fastjson improves
-# the speed of encoding and decoding Livecode arrays to JSON by
-# by a significant margin.
+# By combining the best of easyjson and libjson and adding in
+# performance enhancements, fastjson improves the speed of encoding
+# and decoding Livecode arrays to/from JSON.
 #
 # Credit goes first to Mark Smith for creating the original libjson
-# library. Igor de Oliveira Couto created the also excellent
-# easyJson library picking up where Mark left off.
+# library and to Igor de Oliveira Couto who created the also excellent
+# easyJson library.
 #
 # I am combining routines from both of these libraries to give us
-# a significant boost in performance for JSON to/from Array needs.
+# a decent boost in performance for JSON to/from Array needs.
 # Yes, you can go faster than this with an custom coded extension.
 # But I find the speed of this library to be pretty impressive.
 #
@@ -24,11 +24,18 @@
 # Instructions
 # -------------------------------------------------------------------
 #
-# There are basically only 2 calls that you will make from your
-# Livecode scripts.
+# There are 3 calls that you will make from your Livecode scripts.
 #
-#     arrayToJson( arrayData )
-#     jsonToArray( jsonData )
+#     arrayToJson(pArrayData)
+#     jsonToArray(pJsonData, asUnicode, skipValidation)
+#     isJson(pJsonData)
+#
+# NOTE:
+# You will also find the following for compatibilty with existing
+# easyJson scripts
+#
+#     arrayFromJson(pJsonData) (NOT TESTED)
+#     jsonFromArray(pArrayData) (NOT TESTED)
 #
 # All other functions and commands in this script are for local use
 # only.
@@ -59,23 +66,54 @@ local sOutputUnicode, sJson, sIndex, sNumTokens
 #
 # Prototype:
 #
-#     put jsonToArray( tJsonData ) into tArrayData
+#     put jsonToArray( tJsonData, false, true ) into tArrayData
 #
 ##
-function jsonToArray pJson, asUnicode
+function jsonToArray @pJson, asUnicode, pSkipValidation
    put asUnicode is true into sOutputUnicode
    put jsonToUtf8(pJson) into tJson
-   if tJson begins with "libJson-error" then return tJson
 
-   tokenizeJson tJson
-   if the result is not empty then return the result
+   if tJson begins with "fastJson-error" then return tJson
 
+   if pSkipValidation then
+      tokenize tJson
+   else
+      if not isJson(tJson) then -- isJson will tokenize tJson for us
+         return false
+         //else
+         //tokenize tJson
+      end if
+   end if
+
+   //if the result is not empty then return the result
+   put 0 into sIndex
    put jObjectToArray() into tArray
    put empty into sJson
    return tArray
 end jsonToArray
 
-function arrayToJson pArray
+##
+#
+#  Included for compatibility with easyJson scripts
+#
+##
+function arrayFromJson @pJson
+   return jsonToArray pJson
+end arrayFromJson
+
+##
+# -------------------------------------------------------------------
+#  Array To JSON
+# -------------------------------------------------------------------
+# Convert a multi-demensional Livecode array to a valid JSON data
+# structure.
+#
+# Prototype:
+#
+#     put arrayToJson( tArrayData ) into tJsonData
+#
+##
+function arrayToJson @pArray
    if pArray is not an array then return "Parser Error: parameter given is not an array."
    local tJSON
    if isNumericalArray(pArray) then
@@ -98,6 +136,57 @@ function arrayToJson pArray
    end if
    return tJSON
 end arrayToJson
+
+##
+#
+#  Included for compatibility with easyJson scripts
+#
+##
+function jsonFromArray @pJson
+   return arrayToJson pJson
+end jsonFromArray
+
+##
+# -------------------------------------------------------------------
+#  Validate JSON data structure
+# -------------------------------------------------------------------
+# Validates a JSON data structure
+#
+#
+# Prototype:
+#
+#     if isJson( tJsonData ) then
+#        put "Valid JSON" into tTemp
+#     else
+#        put "ERROR! Not Valid JSON"
+#     end if
+#
+##
+function isJson @pJson
+
+   tokenize pJson
+
+   repeat for each element tToken in sJson
+      if tToken is in "{[" then add 1 to tDepth
+      if tToken is in "}]" then subtract 1 from tDepth
+   end repeat
+
+   if tDepth <> 0 then return false
+
+   put 2 into n
+   repeat for each element tToken in sJson
+      --repeat with n = 1 to sNumTokens - 1
+      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then return false
+   end repeat
+
+   return true
+end isJson
+
+/*
+This was the original tokeninze code from libJson commented out for now.
+This code will be removed eventually.
+
+Bob Hall (2015-OCT-02)
 
 private command tokenizeJson pJson
    put empty into sJson
@@ -127,11 +216,12 @@ private command tokenizeJson pJson
       end if
    end repeat
 
-   if tDepth <> 0 then return "libJson-error: json malformed"
+   if tDepth <> 0 then return "fastJson-error: json malformed"
    repeat with n = 1 to sNumTokens - 1
-      if (sJson[n] is not in "{}[],:") and (sJson[n + 1] is not in "{}[],:") then return "libJson-error: json malformed"
+      if (sJson[n] is not in "{}[],:") and (sJson[n + 1] is not in "{}[],:") then return "fastJson-error: json malformed"
    end repeat
 end tokenizeJson
+*/
 
 private function jObjectToArray
    put empty into tArray
@@ -142,6 +232,7 @@ private function jObjectToArray
       switch sJson[sIndex]
          case "{"
             put jsonDecode(sJson[sIndex + 1]) into tName
+            add 1 to sIndex -- we can skip ahead
             break
          case ":"
             if sJson[sIndex + 1] is not "{" then
@@ -156,8 +247,9 @@ private function jObjectToArray
          case "["
             put jArrayToArray() into tArray[tName]
             break
-         case comma -- must be after "[" or will fuck up jArrays
+         case comma -- must be after "[" or will mess up jArrays
             put jsonDecode(sJson[sIndex + 1]) into tName
+            add 1 to sIndex -- we can skip ahead
             break
       end switch
 
@@ -223,10 +315,10 @@ private function jsonToUtf8 @pJson
          end if
          break
       case "0001"  -- UTF-32BE
-         return "libJson-error: 4 byte unicode, can't decode"
+         return "fastJson-error: 4 byte unicode, can't decode"
          break
       case "1000"  -- UTF-32LE
-         return "libJson-error: 4 byte unicode, can't decode"
+         return "fastJson-error: 4 byte unicode, can't decode"
          break
    end switch
 end jsonToUtf8
@@ -362,3 +454,30 @@ private function jsonValue pValue
          return quote & pValue & quote
    end switch
 end jsonValue
+
+
+private command tokenize @pJson
+   put empty into sJson
+   put 0 into sIndex
+   put 0 into sNumTokens
+
+   # escaped quotes < \" > and reverse-solidus < \\ > will confuse the tokenizer
+   # so we replace them with "\u0022" and "\u005C" which we'll unescape
+   # with all the other unescapes when we parse - jsonDecode()
+   replace "\\" with "\u005C" in pJson
+   replace "\" & quote with "\u0022" in pJson
+
+   put 1 into sIndex
+   repeat for each token tToken in pJson
+      put tToken into sJson[sIndex]
+      add 1 to sIndex
+   end repeat
+
+   put sIndex into sNumTokens
+end tokenize
+
+function numTokens @pJson
+   tokenize pJson
+
+   return sNumTokens
+end numTokens
