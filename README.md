@@ -1,7 +1,7 @@
 # fastjson
 A Livecode library for Array to JSON and back again.
 
-By combining the best of easyjson and libjson and adding in performance enhancements, fastjson improves the speed of encoding and decoding Livecode arrays with JSON by by a significant margin.
+By combining the best of easyjson and libjson and adding in performance enhancements, fastjson improves the speed of encoding and decoding Livecode arrays with JSON.
 
 Credit goes first to Mark Smith for creating the original libjson library and to Igor de Oliveira Couto who created the also excellent easyJson library.
 
