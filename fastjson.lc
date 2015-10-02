@@ -78,10 +78,10 @@ function jsonToArray @pJson, asUnicode, pSkipValidation
    if pSkipValidation then
       tokenize tJson
    else
-      if not isJson(tJson) then
+      if not isJson(tJson) then -- isJson will tokenize tJson for us
          return false
-      else
-         tokenize tJson
+         //else
+         //tokenize tJson
       end if
    end if
 
@@ -473,3 +473,9 @@ private command tokenize @pJson
 
    put sIndex into sNumTokens
 end tokenize
+
+function numTokens @pJson
+   tokenize pJson
+
+   return sNumTokens
+end numTokens
