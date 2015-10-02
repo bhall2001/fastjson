@@ -16,7 +16,7 @@
 # easyJson library.
 #
 # I am combining routines from both of these libraries to give us
-# a significant boost in performance for JSON to/from Array needs.
+# a decent boost in performance for JSON to/from Array needs.
 # Yes, you can go faster than this with an custom coded extension.
 # But I find the speed of this library to be pretty impressive.
 #
