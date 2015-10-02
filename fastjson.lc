@@ -9,7 +9,7 @@
 #
 # By combining the best of easyjson and libjson and adding in
 # performance enhancements, fastjson improves the speed of encoding
-# and decoding Livecode arrays with JSON by by a significant margin.
+# and decoding Livecode arrays to/from JSON.
 #
 # Credit goes first to Mark Smith for creating the original libjson
 # library and to Igor de Oliveira Couto who created the also excellent
@@ -232,6 +232,7 @@ private function jObjectToArray
       switch sJson[sIndex]
          case "{"
             put jsonDecode(sJson[sIndex + 1]) into tName
+            add 1 to sIndex -- we can skip ahead
             break
          case ":"
             if sJson[sIndex + 1] is not "{" then
@@ -246,8 +247,9 @@ private function jObjectToArray
          case "["
             put jArrayToArray() into tArray[tName]
             break
-         case comma -- must be after "[" or will fuck up jArrays
+         case comma -- must be after "[" or will mess up jArrays
             put jsonDecode(sJson[sIndex + 1]) into tName
+            add 1 to sIndex -- we can skip ahead
             break
       end switch
 
