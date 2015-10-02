@@ -8,7 +8,7 @@
 # October 1, 2015
 #
 # By combining the best of easyjson and libjson, fastjson improves
-# the speed of encoding and decoding Livecode arrays to JSON by
+# the speed of encoding and decoding Livecode arrays with JSON by
 # by a significant margin.
 #
 # Credit goes first to Mark Smith for creating the original libjson
@@ -59,17 +59,23 @@ local sOutputUnicode, sJson, sIndex, sNumTokens
 #
 # Prototype:
 #
-#     put jsonToArray( tJsonData ) into tArrayData
+#     put jsonToArray( tJsonData, false, true ) into tArrayData
 #
 ##
-function jsonToArray pJson, asUnicode
+function jsonToArray pJson, asUnicode, pDontCheck
    put asUnicode is true into sOutputUnicode
    put jsonToUtf8(pJson) into tJson
-   if tJson begins with "libJson-error" then return tJson
 
-   tokenizeJson tJson
-   if the result is not empty then return the result
+   if tJson begins with "fastJson-error" then return tJson
 
+   if pDontCheck then
+      tokenize tJson
+   else if not isJson(tJson) then
+      return false
+   end if
+
+   //if the result is not empty then return the result
+   put 0 into sIndex
    put jObjectToArray() into tArray
    put empty into sJson
    return tArray
@@ -127,9 +133,9 @@ private command tokenizeJson pJson
       end if
    end repeat
 
-   if tDepth <> 0 then return "libJson-error: json malformed"
+   if tDepth <> 0 then return "fastJson-error: json malformed"
    repeat with n = 1 to sNumTokens - 1
-      if (sJson[n] is not in "{}[],:") and (sJson[n + 1] is not in "{}[],:") then return "libJson-error: json malformed"
+      if (sJson[n] is not in "{}[],:") and (sJson[n + 1] is not in "{}[],:") then return "fastJson-error: json malformed"
    end repeat
 end tokenizeJson
 
@@ -223,10 +229,10 @@ private function jsonToUtf8 @pJson
          end if
          break
       case "0001"  -- UTF-32BE
-         return "libJson-error: 4 byte unicode, can't decode"
+         return "fastJson-error: 4 byte unicode, can't decode"
          break
       case "1000"  -- UTF-32LE
-         return "libJson-error: 4 byte unicode, can't decode"
+         return "fastJson-error: 4 byte unicode, can't decode"
          break
    end switch
 end jsonToUtf8
@@ -362,3 +368,44 @@ private function jsonValue pValue
          return quote & pValue & quote
    end switch
 end jsonValue
+
+
+private command tokenize @pJson
+   put empty into sJson
+   put 0 into sIndex
+   put 0 into sNumTokens
+
+   # escaped quotes < \" > and reverse-solidus < \\ > will confuse the tokenizer
+   # so we replace them with "\u0022" and "\u005C" which we'll unescape
+   # with all the other unescapes when we parse - jsonDecode()
+   replace "\\" with "\u005C" in pJson
+   replace "\" & quote with "\u0022" in pJson
+
+   put 1 into sIndex
+   repeat for each token tToken in pJson
+      put tToken into sJson[sIndex]
+      add 1 to sIndex
+   end repeat
+
+   put sIndex into sNumTokens
+end tokenize
+
+function isJson @pJson
+
+   tokenize pJson
+
+   repeat for each element tToken in sJson
+      if tToken is in "{[" then add 1 to tDepth
+      if tToken is in "}]" then subtract 1 from tDepth
+   end repeat
+
+   if tDepth <> 0 then return false
+
+   put 2 into n
+   repeat for each element tToken in sJson
+      --repeat with n = 1 to sNumTokens - 1
+      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then return false
+   end repeat
+
+   return true
+end isJson
