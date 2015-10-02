@@ -13,15 +13,15 @@ I am combining routines from both of these libraries to give us a decent boost i
 
 There are 3 calls that you will make from your Livecode scripts.
 
-      arrayToJson(pArrayData)
-      jsonToArray(pJsonData, asUnicode, skipValidation)
-      isJson(pJsonData)
+      arrayToJson(tArrayData)
+      jsonToArray(tJsonData, asUnicode, skipValidation)
+      isJson(tJsonData)
 
 NOTE:
 You will also find the following for compatibility with existing easyJson scripts
 
-     arrayFromJson(pJsonData) (NOT TESTED)
-     jsonFromArray(pArrayData) (NOT TESTED)
+     arrayFromJson(tJsonData) (NOT TESTED)
+     jsonFromArray(tArrayData) (NOT TESTED)
 
 All other functions and commands in this script are for local use only.
 
