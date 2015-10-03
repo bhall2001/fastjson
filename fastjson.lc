@@ -226,7 +226,10 @@ end tokenizeJson
 private function jObjectToArray
    put empty into tArray
 
-   repeat while sIndex <= sNumTokens
+   -- using a repeat forever with a conditional got small improvement
+   repeat forever
+      --repeat while sIndex <= sNumTokens
+      if sIndex > sNumTokens then exit repeat
       add 1 to sIndex
 
       switch sJson[sIndex]
