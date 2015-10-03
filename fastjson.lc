@@ -61,7 +61,7 @@ local sOutputUnicode, sJson, sIndex, sNumTokens
 # -------------------------------------------------------------------
 #  JSON to Array
 # -------------------------------------------------------------------
-# Convert a valid JSON data structure to a multi-demensional Livecode
+# Convert a valid JSON data structure to a multi-dimensional Livecode
 # array.
 #
 # Prototype:
@@ -105,7 +105,7 @@ end arrayFromJson
 # -------------------------------------------------------------------
 #  Array To JSON
 # -------------------------------------------------------------------
-# Convert a multi-demensional Livecode array to a valid JSON data
+# Convert a multi-dimensional Livecode array to a valid JSON data
 # structure.
 #
 # Prototype:
