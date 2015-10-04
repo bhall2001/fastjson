@@ -98,7 +98,7 @@ end jsonToArray
 #
 ##
 function arrayFromJson @pJson
-   return jsonToArray pJson
+   return jsonToArray(pJson)
 end arrayFromJson
 
 ##
@@ -143,7 +143,7 @@ end arrayToJson
 #
 ##
 function jsonFromArray @pJson
-   return arrayToJson pJson
+   return arrayToJson(pJson)
 end jsonFromArray
 
 ##
