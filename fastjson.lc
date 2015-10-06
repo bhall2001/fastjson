@@ -475,7 +475,7 @@ end jsonValue
 --
 -- function to do some housekeeping in the text going into the JSON
 --
-private function cleanText(pText)
+private function cleanText pText
   replace "\" with "\\" in pText // the backslash itself
   replace quote with ("\" & quote) in pText // the double quote
   replace "/" with "\/" in pText // the (forward) slash
