@@ -443,20 +443,46 @@ private function jsonValue pValue
          if pValue then return "true"
          else return "false"
          break
-      case pValue is a number
-         return pValue
-         break
+         case pValue is a number
+            -- need to catch when a "number" starts with a 0
+            -- decided to return this as a quoted string
+            -- JSON lint throws an exception if a number starts with a 0
+            if (character 1 of pValue = 0) and not (character 2 of pValue = ".") and (length(pValue) > 1) then
+               return quote & pValue & quote
+            end if
+          -- need to catch Livecode using text strings to represent numbers
+          -- the logic of is a number with Livecode returns true for the following
+          -- text strings:
+          -- infinity, zero, one, two, three, four, five, six, seven, eight, nine, ten
+          -- my work around is to look at character 2 of the "number" and see
+          -- if it really is a number. if it is not a number, then
+          -- we actually have a string here.
+            if (char 2 of pValue is not a number) and (length(pValue)>1) then
+              put cleanText(pValue) into pValue
+              return quote & pValue & quote
+            else
+               return pValue
+            end if
+            break
       default
          # any other value is processed as a string.
          # JSON strings require that certain characters be 'escaped' with a backslash:
-         replace "\" with "\\" in pValue // the backslash itself
-         replace quote with ("\" & quote) in pValue // the double quote
-         replace "/" with "\/" in pValue // the (forward) slash
-         replace tab with "\t" in pValue // the tab
-         replace return with "\n" in pValue // the return
+         put cleanText(pValue) into pValue
          return quote & pValue & quote
    end switch
 end jsonValue
+
+--
+-- function to do some housekeeping in the text going into the JSON
+--
+private function cleanText(pText)
+  replace "\" with "\\" in pText // the backslash itself
+  replace quote with ("\" & quote) in pText // the double quote
+  replace "/" with "\/" in pText // the (forward) slash
+  replace tab with "\t" in pText // the tab
+  replace return with "\n" in pText // the return
+  return pText
+end cleanText
 
 
 private command tokenize @pJson
@@ -472,7 +498,7 @@ private command tokenize @pJson
    put 1 into sIndex
    put "" into prevToken
    repeat for each token tToken in pJson
-      if tToken is in "+-" then
+      if tToken is in "+-" then -- needed for numbers in json
          # since "+" & "-" are rev tokens, but not jSon tokens,
          # we have to prepend them to the next token
          put tToken into prevToken
