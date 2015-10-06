@@ -26,7 +26,7 @@
 #
 # There are 3 calls that you will make from your Livecode scripts.
 #
-#     arrayToJson(pArrayData)
+#     arrayToJson(pArrayData, keepNumeric)
 #     jsonToArray(pJsonData, asUnicode, skipValidation)
 #     isJson(pJsonData)
 #
@@ -113,11 +113,12 @@ end arrayFromJson
 #     put arrayToJson( tArrayData ) into tJsonData
 #
 ##
-function arrayToJson @pArray
+function arrayToJson @pArray keepNumeric
    if pArray is not an array then return "Parser Error: parameter given is not an array."
    local tJSON
-   if isNumericalArray(pArray) then
+   if isNumericalArray(pArray) and keepNumeric is not true then
       # the array's keys are all *numerical*, so the root element will be a JSON *array*
+      # if keepNumeric is true, then the keys will remain numeric keys
       put "[" into tJSON
       local tValue
       repeat for each element tValue in pArray
