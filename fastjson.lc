@@ -460,8 +460,7 @@ end jsonValue
 
 
 private command tokenize @pJson
-   put empty into sJson
-   put 0 into sIndex
+   put "" into sJson
    put 0 into sNumTokens
 
    # escaped quotes < \" > and reverse-solidus < \\ > will confuse the tokenizer
@@ -471,16 +470,16 @@ private command tokenize @pJson
    replace "\" & quote with "\u0022" in pJson
 
    put 1 into sIndex
+   put "" into prevToken
    repeat for each token tToken in pJson
-      put tToken into sJson[sIndex]
-      add 1 to sIndex
+      if tToken is in "+-" then
+         # since "+" & "-" are rev tokens, but not jSon tokens,
+         # we have to prepend them to the next token
+         put tToken into prevToken
+      else
+         add 1 to sNumTokens
+         put prevToken & tToken into sJson[sNumTokens]
+         put "" into prevToken
+      end if
    end repeat
-
-   put sIndex into sNumTokens
 end tokenize
-
-function numTokens @pJson
-   tokenize pJson
-
-   return sNumTokens
-end numTokens
