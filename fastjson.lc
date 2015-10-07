@@ -451,20 +451,12 @@ private function jsonValue pValue
             if (character 1 of pValue = 0) and not (character 2 of pValue = ".") and (length(pValue) > 1) then
                return quote & pValue & quote
             end if
-          -- need to catch Livecode using text strings to represent numbers
-          -- the logic of is a number with Livecode returns true for the following
-          -- text strings:
-          -- infinity, zero, one, two, three, four, five, six, seven, eight, nine, ten
-          -- my work around is to look at character 2 of the "number" and see
-          -- if it really is a number. if it is not a number, then
-          -- we actually have a string here.
-            if (char 2 of pValue is not a number) and (length(pValue)>1) then
-              put cleanText(pValue) into pValue
-              return quote & pValue & quote
-            else
+            -- there is an existing bug in LC where "inf" and "Infinity" are getting through the is a number
+            -- screen. I've submitted a bug.
+            if char 1 of pValue is "i" then
+               return quote & pValue & quote
+             else
                return pValue
-            end if
-            break
       default
          # any other value is processed as a string.
          # JSON strings require that certain characters be 'escaped' with a backslash:
