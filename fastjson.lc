@@ -502,3 +502,9 @@ private command tokenize @pJson
       end if
    end repeat
 end tokenize
+
+function numTokens @pJson
+   tokenize pJson
+
+   return sNumTokens
+end numTokens
