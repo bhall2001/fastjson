@@ -451,8 +451,9 @@ private function jsonValue pValue
             if (character 1 of pValue = 0) and not (character 2 of pValue = ".") and (length(pValue) > 1) then
                return quote & pValue & quote
             end if
-            -- there is an existing bug in LC where "inf" and "Infinity" are getting through the is a number
-            -- screen. I've submitted a bug.
+            -- there is an "anomoly" in LC where "inf" and "Infinity" are getting through "is a number"
+            -- function. Not sure what the result will be but the code below will catch both.
+            -- I have submitted the following bugs: 16160, 16162, 16163
             if char 1 of pValue is "i" then
                return quote & pValue & quote
              else
