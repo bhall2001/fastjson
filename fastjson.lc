@@ -418,7 +418,7 @@ and returns TRUE if all the keys are numerical - otherwise, returns false.
 private function isNumericalArray pArray
    local tKeys
    put the keys of pArray into tKeys
-   filter tKeys without "[0-9]*"
+   filter tKeys without "^[0-9]+$"
    if the number of lines in tKeys > 0 then return false
    else return true
 end isNumericalArray
