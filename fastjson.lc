@@ -1,7 +1,7 @@
 <?lc
 ##
 # -------------------------------------------------------------------
-# FASTJSON v0.2.1
+# FASTJSON v0.3.0
 # -------------------------------------------------------------------
 #
 # Bob Hall
@@ -370,13 +370,29 @@ private function jsonDecode pString
             replace "\u0022" with quote in pString
             replace "\u005C" with "\" in pString
             -- any others
-            if "\u" is in pString then put unicodeEscapes(pString) into pString
 
+            ##
+            # REMOVED 10/15/2015 by BobH
+            # Below causing issues with RTF escaped characters.
+            # In general I am removing Unicode support for the time being.
+            #
+            ## if "\u" is in pString then put unicodeEscapes(pString) into pString
+
+            ##
+            # REMOVED 10/15/2015 by BobH
+            # For now, I'm removing Unicode logic until I can have a look
+            # at it more in depth.
+            #
+            /*
             if not sOutputUnicode then
                return utf8decode(pString)
             else
                return pString
             end if
+            */
+
+            return pString -- Remove this when Unicode issues resolved
+
          end if
    end switch
 end jsonDecode
@@ -444,20 +460,21 @@ private function jsonValue pValue
          if pValue then return "true"
          else return "false"
          break
-         case pValue is a number
-            -- need to catch when a "number" starts with a 0
-            -- decided to return this as a quoted string
-            -- JSON lint throws an exception if a number starts with a 0
-            if (character 1 of pValue = 0) and not (character 2 of pValue = ".") and (length(pValue) > 1) then
-               return quote & pValue & quote
-            end if
-            -- there is an "anomoly" in LC where "inf" and "Infinity" are getting through "is a number"
-            -- function. Not sure what the result will be but the code below will catch both.
-            -- I have submitted the following bugs: 16160, 16162, 16163
-            if char 1 of pValue is "i" then
-               return quote & pValue & quote
-             else
-               return pValue
+      case pValue is a number
+         -- need to catch when a "number" starts with a 0
+         -- decided to return this as a quoted string
+         -- JSON lint throws an exception if a number starts with a 0
+         if (character 1 of pValue = 0) and not (character 2 of pValue = ".") and (length(pValue) > 1) then
+            return quote & pValue & quote
+         end if
+         -- there is an "anomoly" in LC where "inf" and "Infinity" are getting through "is a number"
+         -- function. Not sure what the result will be but the code below will catch both.
+         -- I have submitted the following bugs: 16160, 16162, 16163
+         if char 1 of pValue is "i" then
+            return quote & pValue & quote
+         else
+            return pValue
+         end if
       default
          # any other value is processed as a string.
          # JSON strings require that certain characters be 'escaped' with a backslash:
