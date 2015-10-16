@@ -379,24 +379,29 @@ private function jsonDecode pString
             ## if "\u" is in pString then put unicodeEscapes(pString) into pString
 
             ##
-            # REMOVED 10/15/2015 by BobH
-            # For now, I'm removing Unicode logic until I can have a look
-            # at it more in depth.
+            # JSON encoders escape unicode characters as "\uHHHH",
+            # where 'H' is a hexadecimal digit. Convert to UTF8
             #
-            /*
+            repeat while matchtext(pString,"\\u([0-9A-Fa-f]{4})",tCode)
+               set the useunicode to true
+               put unidecode(numtochar(baseconvert(tCode,16,10)),"UTF8") into tChar
+               replace ("\u" & tCode) with tChar in pString
+            end repeat
+
             if not sOutputUnicode then
                return utf8decode(pString)
             else
                return pString
             end if
-            */
-
-            return pString -- Remove this when Unicode issues resolved
-
          end if
    end switch
 end jsonDecode
 
+##
+# REMOVED 10/16/2015 by BobH
+# Removed this function. Replaced with code in Json string hanlding
+#
+/*
 private function unicodeEscapes pString
    put false into inEsc
    repeat for each char c in pString
@@ -423,6 +428,7 @@ private function unicodeEscapes pString
    put buffer after nString
    return nString
 end unicodeEscapes
+*/  
 
 /*
 This function checks the keys of a LiveCode array,
