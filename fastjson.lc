@@ -178,6 +178,7 @@ function isJson @pJson
    repeat for each element tToken in sJson
       --repeat with n = 1 to sNumTokens - 1
       if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then return false
+      add 1 to n
    end repeat
 
    return true
@@ -294,7 +295,12 @@ end jArrayToArray
 private function jsonToUtf8 @pJson
    local tNulls = "1111"
 
-   repeat with n = 1 to 4
+   ##
+   # Repeat for each is faster than repeat with
+   #
+   put "1,2,3,4" into tCounter
+   repeat for each element n in tCounter
+      --repeat with n = 1 to 4
       if (byte n of pJson is null) then put 0 into char n of tNulls
    end repeat
 
@@ -428,7 +434,7 @@ private function unicodeEscapes pString
    put buffer after nString
    return nString
 end unicodeEscapes
-*/  
+*/
 
 /*
 This function checks the keys of a LiveCode array,
