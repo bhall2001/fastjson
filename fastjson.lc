@@ -490,23 +490,14 @@ private function jsonValue pValue
       default
          # any other value is processed as a string.
          # JSON strings require that certain characters be 'escaped' with a backslash:
-         put cleanText(pValue) into pValue
+         replace "\" with "\\" in pText // the backslash itself
+         replace quote with ("\" & quote) in pText // the double quote
+         replace "/" with "\/" in pText // the (forward) slash
+         replace tab with "\t" in pText // the tab
+         replace return with "\n" in pText // the return
          return quote & pValue & quote
    end switch
 end jsonValue
-
---
--- function to do some housekeeping in the text going into the JSON
---
-private function cleanText pText
-  replace "\" with "\\" in pText // the backslash itself
-  replace quote with ("\" & quote) in pText // the double quote
-  replace "/" with "\/" in pText // the (forward) slash
-  replace tab with "\t" in pText // the tab
-  replace return with "\n" in pText // the return
-  return pText
-end cleanText
-
 
 private command tokenize @pJson
    put "" into sJson
