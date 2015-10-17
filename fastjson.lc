@@ -166,18 +166,23 @@ end jsonFromArray
 function isJson @pJson
 
    tokenize pJson
-
+   /*
    repeat for each element tToken in sJson
       if tToken is in "{[" then add 1 to tDepth
       if tToken is in "}]" then subtract 1 from tDepth
    end repeat
 
    if tDepth <> 0 then return false
-
+   */
    put 2 into n
    repeat for each element tToken in sJson
       --repeat with n = 1 to sNumTokens - 1
-      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then return false
+      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then
+         put sJson[n-3] & return & sJson[n-2] &  return & sJson[n-1] &  return & sJson[n] &  return & sJson[n+1] &  return
+
+
+         return false
+      end if
       add 1 to n
    end repeat
 
@@ -512,16 +517,36 @@ private command tokenize @pJson
    put 1 into sIndex
    put "" into prevToken
    repeat for each token tToken in pJson
+      ## I've removed the following.
+      ## debugging an Json where we have
+      ## "name":"-",
+      ## this appears to trip up the tokenizer
+      /*
       if tToken is in "+-" then -- needed for numbers in json
          # since "+" & "-" are rev tokens, but not jSon tokens,
          # we have to prepend them to the next token
          put tToken into prevToken
-      else
-         add 1 to sNumTokens
-         put prevToken & tToken into sJson[sNumTokens]
-         put "" into prevToken
-      end if
-   end repeat
+      else*/
+
+      switch
+         case tToken is in "+-"
+            # since "+" & "-" are rev tokens, but not jSon tokens,
+            # we have to prepend them to the next token
+            put tToken after prevToken
+            break
+         case (prevToken is in "+-") and (tToken is not a number)
+            add 1 to sNumTokens
+            put prevToken into sJson[sNumTokens]
+            put "" into prevToken
+            add 1 to sNumTokens
+            put tToken into sJson[sNumTokens]
+            break
+         default
+            add 1 to sNumTokens
+            put prevToken & tToken into sJson[sNumTokens]
+            put "" into prevToken
+      end switch
+    end repeat
 end tokenize
 
 function numTokens @pJson
