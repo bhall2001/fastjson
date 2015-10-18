@@ -93,7 +93,13 @@ function jsonToArray pJson, asUnicode, pSkipValidation
 
    //if the result is not empty then return the result
    put 0 into sIndex
-   put jObjectToArray() into tArray
+   if sJson[1] = "[" then
+      add 1 to sIndex
+      put jArraytoArray() into tArray
+   else
+      put jObjectToArray() into tArray
+   end if
+
    put empty into sJson
    return tArray
 end jsonToArray
@@ -279,11 +285,8 @@ private function jObjectToArray
 end jObjectToArray
 
 private function jArrayToArray
-   local tKey
-   local tArray
-
-   put 0 into tKey
-   put empty into tArray
+   local tKey=0
+   local tArray=""
 
    repeat while sIndex <= sNumTokens
       add 1 to sIndex
