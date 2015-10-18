@@ -495,11 +495,11 @@ private function jsonValue pValue
       default
          # any other value is processed as a string.
          # JSON strings require that certain characters be 'escaped' with a backslash:
-         replace "\" with "\\" in pText // the backslash itself
-         replace quote with ("\" & quote) in pText // the double quote
-         replace "/" with "\/" in pText // the (forward) slash
-         replace tab with "\t" in pText // the tab
-         replace return with "\n" in pText // the return
+         replace "\" with "\\" in pValue // the backslash itself
+         replace quote with ("\" & quote) in pValue // the double quote
+         replace "/" with "\/" in pValue // the (forward) slash
+         replace tab with "\t" in pValue // the tab
+         replace return with "\n" in pValue // the return
          return quote & pValue & quote
    end switch
 end jsonValue
