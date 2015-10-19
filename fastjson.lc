@@ -1,11 +1,11 @@
 <?lc
 ##
 # -------------------------------------------------------------------
-# FASTJSON v0.3.0
+# FASTJSON v0.4.1
 # -------------------------------------------------------------------
 #
 # Bob Hall
-# October 2, 2015
+# October 18, 2015
 #
 # By combining the best of easyjson and libjson and adding in
 # performance enhancements, fastjson improves the speed of encoding
@@ -55,7 +55,10 @@
 ##
 
 # DECLARE SCRIPT LOCAL VARIABLES
-local sOutputUnicode, sJson, sIndex, sNumTokens
+local sOutputUnicode=""
+local sJson=""
+local sIndex=0
+local sNumTokens=0
 
 ##
 # -------------------------------------------------------------------
@@ -69,7 +72,10 @@ local sOutputUnicode, sJson, sIndex, sNumTokens
 #     put jsonToArray( tJsonData, false, true ) into tArrayData
 #
 ##
-function jsonToArray @pJson, asUnicode, pSkipValidation
+function jsonToArray pJson, asUnicode, pSkipValidation
+   local tJson = ""
+   local tArray = ""
+
    put asUnicode is true into sOutputUnicode
    put jsonToUtf8(pJson) into tJson
 
@@ -87,7 +93,13 @@ function jsonToArray @pJson, asUnicode, pSkipValidation
 
    //if the result is not empty then return the result
    put 0 into sIndex
-   put jObjectToArray() into tArray
+   if sJson[1] = "[" then
+      add 1 to sIndex
+      put jArraytoArray() into tArray
+   else
+      put jObjectToArray() into tArray
+   end if
+
    put empty into sJson
    return tArray
 end jsonToArray
@@ -97,7 +109,7 @@ end jsonToArray
 #  Included for compatibility with easyJson scripts
 #
 ##
-function arrayFromJson @pJson
+function arrayFromJson pJson
    return jsonToArray(pJson)
 end arrayFromJson
 
@@ -113,14 +125,16 @@ end arrayFromJson
 #     put arrayToJson( tArrayData ) into tJsonData
 #
 ##
-function arrayToJson @pArray keepNumeric
+function arrayToJson pArray keepNumeric
+  local tJSON
+  local tValue
+  local tKey
+
    if pArray is not an array then return "Parser Error: parameter given is not an array."
-   local tJSON
    if isNumericalArray(pArray) and keepNumeric is not true then
       # the array's keys are all *numerical*, so the root element will be a JSON *array*
       # if keepNumeric is true, then the keys will remain numeric keys
       put "[" into tJSON
-      local tValue
       repeat for each element tValue in pArray
          put jsonValue(tValue) & comma after tJSON
       end repeat
@@ -128,7 +142,6 @@ function arrayToJson @pArray keepNumeric
    else
       # the array's keys are not all numerical, so the root element will be a JSON *object*
       put "{" into tJSON
-      local tKey
       repeat for each key tKey in pArray
          # all JSON object keys are double-quoted strings:
          put quote & tKey & quote & ":" & jsonValue(pArray[tKey]) & comma after tJSON
@@ -143,7 +156,7 @@ end arrayToJson
 #  Included for compatibility with easyJson scripts
 #
 ##
-function jsonFromArray @pJson
+function jsonFromArray pJson
    return arrayToJson(pJson)
 end jsonFromArray
 
@@ -163,21 +176,27 @@ end jsonFromArray
 #     end if
 #
 ##
-function isJson @pJson
+function isJson pJson
+   local n
 
    tokenize pJson
-
+   /*
    repeat for each element tToken in sJson
       if tToken is in "{[" then add 1 to tDepth
       if tToken is in "}]" then subtract 1 from tDepth
    end repeat
 
    if tDepth <> 0 then return false
-
+   */
    put 2 into n
    repeat for each element tToken in sJson
       --repeat with n = 1 to sNumTokens - 1
-      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then return false
+      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then
+         put sJson[n-3] & return & sJson[n-2] &  return & sJson[n-1] &  return & sJson[n] &  return & sJson[n+1] &  return
+
+
+         return false
+      end if
       add 1 to n
    end repeat
 
@@ -226,6 +245,9 @@ end tokenizeJson
 */
 
 private function jObjectToArray
+   local tArray
+   local tName
+
    put empty into tArray
 
    -- using a repeat forever with a conditional got small improvement
@@ -263,8 +285,8 @@ private function jObjectToArray
 end jObjectToArray
 
 private function jArrayToArray
-   put 0 into tKey
-   put empty into tArray
+   local tKey=0
+   local tArray=""
 
    repeat while sIndex <= sNumTokens
       add 1 to sIndex
@@ -294,11 +316,12 @@ end jArrayToArray
 
 private function jsonToUtf8 @pJson
    local tNulls = "1111"
+   local tCounter = "1,2,3,4"
+   local bigEndian
 
    ##
    # Repeat for each is faster than repeat with
    #
-   put "1,2,3,4" into tCounter
    repeat for each element n in tCounter
       --repeat with n = 1 to 4
       if (byte n of pJson is null) then put 0 into char n of tNulls
@@ -350,12 +373,21 @@ private function utf8decode pString, pToUnicode
 end utf8decode
 
 private function jsonDecode pString
+   local tCode
+   local tChar
+
    switch pString
       case "false"
          return "false"
          break
       case "true"
          return "true"
+         break
+         #
+         # SPECIAL CASE. Need to catch this in JSON or performace takes a hit.
+         #
+      case ""
+         return empty
          break
       case "null"
          return empty
@@ -443,12 +475,28 @@ and returns TRUE if all the keys are numerical - otherwise, returns false.
 @param pArray a LiveCode array
 @return TRUE if the array's keys are all numerical, otherwise FALSE
 */
-private function isNumericalArray pArray
-   local tKeys
+private function isNumericalArray @pArray
+   local tKeys, aKey
    put the keys of pArray into tKeys
-   filter tKeys without "^[0-9]+$"
-   if the number of lines in tKeys > 0 then return false
-   else return true
+   /*
+   # REMOVED 10/18/2015
+   # the filter command returns true if there is a number in the string anywhere
+   #
+   filter tKeys without "[0-9]*"
+   if the number of lines in tKeys > 0 then
+      return false
+   else
+      return true
+   end if
+   */
+   repeat for each line aKey in tKeys
+      if aKey is not a number then
+         -- as soon as we don't get a number, get outa here!
+         return false
+         exit isNumericalArray
+      end if
+   end repeat
+   return true
 end isNumericalArray
 
 /*
@@ -490,17 +538,19 @@ private function jsonValue pValue
       default
          # any other value is processed as a string.
          # JSON strings require that certain characters be 'escaped' with a backslash:
-         replace "\" with "\\" in pText // the backslash itself
-         replace quote with ("\" & quote) in pText // the double quote
-         replace "/" with "\/" in pText // the (forward) slash
-         replace tab with "\t" in pText // the tab
-         replace return with "\n" in pText // the return
+         replace "\" with "\\" in pValue // the backslash itself
+         replace quote with ("\" & quote) in pValue // the double quote
+         replace "/" with "\/" in pValue // the (forward) slash
+         replace tab with "\t" in pValue // the tab
+         replace return with "\n" in pValue // the return
          return quote & pValue & quote
    end switch
 end jsonValue
 
 private command tokenize @pJson
-   put "" into sJson
+   local prevToken
+
+   put empty into sJson
    put 0 into sNumTokens
 
    # escaped quotes < \" > and reverse-solidus < \\ > will confuse the tokenizer
@@ -512,16 +562,36 @@ private command tokenize @pJson
    put 1 into sIndex
    put "" into prevToken
    repeat for each token tToken in pJson
+      ## I've removed the following.
+      ## debugging an Json where we have
+      ## "name":"-",
+      ## this appears to trip up the tokenizer
+      /*
       if tToken is in "+-" then -- needed for numbers in json
          # since "+" & "-" are rev tokens, but not jSon tokens,
          # we have to prepend them to the next token
          put tToken into prevToken
-      else
-         add 1 to sNumTokens
-         put prevToken & tToken into sJson[sNumTokens]
-         put "" into prevToken
-      end if
-   end repeat
+      else*/
+
+      switch
+         case tToken is in "+-"
+            # since "+" & "-" are rev tokens, but not jSon tokens,
+            # we have to prepend them to the next token
+            put tToken after prevToken
+            break
+         case (prevToken is in "+-") and (tToken is not a number)
+            add 1 to sNumTokens
+            put prevToken into sJson[sNumTokens]
+            put "" into prevToken
+            add 1 to sNumTokens
+            put tToken into sJson[sNumTokens]
+            break
+         default
+            add 1 to sNumTokens
+            put prevToken & tToken into sJson[sNumTokens]
+            put "" into prevToken
+      end switch
+    end repeat
 end tokenize
 
 function numTokens @pJson
