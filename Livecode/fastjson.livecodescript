@@ -474,11 +474,27 @@ and returns TRUE if all the keys are numerical - otherwise, returns false.
 @return TRUE if the array's keys are all numerical, otherwise FALSE
 */
 private function isNumericalArray @pArray
-   local tKeys
+   local tKeys, aKey
    put the keys of pArray into tKeys
-   filter tKeys without "^[0-9]+$"
-   if the number of lines in tKeys > 0 then return false
-   else return true
+   /*
+   # REMOVED 10/18/2015
+   # the filter command returns true if there is a number in the string anywhere
+   #
+   filter tKeys without "[0-9]*"
+   if the number of lines in tKeys > 0 then
+      return false
+   else
+      return true
+   end if
+   */
+   repeat for each line aKey in tKeys
+      if aKey is not a number then
+         -- as soon as we don't get a number, get outa here!
+         return false
+         exit isNumericalArray
+      end if
+   end repeat
+   return true
 end isNumericalArray
 
 /*
