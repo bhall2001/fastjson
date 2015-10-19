@@ -473,6 +473,7 @@ and returns TRUE if all the keys are numerical - otherwise, returns false.
 @param pArray a LiveCode array
 @return TRUE if the array's keys are all numerical, otherwise FALSE
 */
+# MDW 2015-10-19 migrated from fastjson.lc
 private function isNumericalArray @pArray
    local tKeys, aKey
    put the keys of pArray into tKeys
