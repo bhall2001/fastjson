@@ -1,11 +1,11 @@
 <?lc
 ##
 # -------------------------------------------------------------------
-# FASTJSON v0.4.1
+# FASTJSON v0.5.0
 # -------------------------------------------------------------------
 #
 # Bob Hall
-# October 18, 2015
+# October 19, 2015
 #
 # By combining the best of easyjson and libjson and adding in
 # performance enhancements, fastjson improves the speed of encoding
@@ -86,8 +86,6 @@ function jsonToArray pJson, asUnicode, pSkipValidation
    else
       if not isJson(tJson) then -- isJson will tokenize tJson for us
          return false
-         //else
-         //tokenize tJson
       end if
    end if
 
@@ -164,8 +162,6 @@ end jsonFromArray
 # -------------------------------------------------------------------
 #  Validate JSON data structure
 # -------------------------------------------------------------------
-# Validates a JSON data structure
-#
 #
 # Prototype:
 #
@@ -177,24 +173,20 @@ end jsonFromArray
 #
 ##
 function isJson pJson
-   local n
+   local n, tDepth
 
    tokenize pJson
-   /*
+
    repeat for each element tToken in sJson
       if tToken is in "{[" then add 1 to tDepth
       if tToken is in "}]" then subtract 1 from tDepth
    end repeat
 
    if tDepth <> 0 then return false
-   */
+
    put 2 into n
    repeat for each element tToken in sJson
-      --repeat with n = 1 to sNumTokens - 1
       if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then
-         put sJson[n-3] & return & sJson[n-2] &  return & sJson[n-1] &  return & sJson[n] &  return & sJson[n+1] &  return
-
-
          return false
       end if
       add 1 to n
@@ -203,46 +195,6 @@ function isJson pJson
    return true
 end isJson
 
-/*
-This was the original tokeninze code from libJson commented out for now.
-This code will be removed eventually.
-
-Bob Hall (2015-OCT-02)
-
-private command tokenizeJson pJson
-   put empty into sJson
-   put 0 into sIndex
-   put 0 into sNumTokens
-
-   # escaped quotes < \" > and reverse-solidus < \\ > will confuse the tokenizer
-   # so we replace them with "\u0022" and "\u005C" which we'll unescape
-   # with all the other unescapes when we parse - jsonDecode()
-   replace "\\" with "\u005C" in pJson
-   replace "\" & quote with "\u0022" in pJson
-
-   put 0 into tDepth
-   put empty into prevToken
-   repeat for each token tToken in pJson
-      if tToken is in "+-" then
-         # since "+" & "-" are rev tokens, but not jSon tokens,
-         # we have to prepend them to the next token
-         put tToken into prevToken
-      else
-         add 1 to sNumTokens
-         put prevToken & tToken into sJson[sNumTokens]
-         put empty into prevToken
-
-         if tToken is in "{[" then add 1 to tDepth
-         if tToken is in "}]" then subtract 1 from tDepth
-      end if
-   end repeat
-
-   if tDepth <> 0 then return "fastJson-error: json malformed"
-   repeat with n = 1 to sNumTokens - 1
-      if (sJson[n] is not in "{}[],:") and (sJson[n + 1] is not in "{}[],:") then return "fastJson-error: json malformed"
-   end repeat
-end tokenizeJson
-*/
 
 private function jObjectToArray
    local tArray
@@ -252,7 +204,6 @@ private function jObjectToArray
 
    -- using a repeat forever with a conditional got small improvement
    repeat forever
-      --repeat while sIndex <= sNumTokens
       if sIndex > sNumTokens then exit repeat
       add 1 to sIndex
 
@@ -323,7 +274,6 @@ private function jsonToUtf8 @pJson
    # Repeat for each is faster than repeat with
    #
    repeat for each element n in tCounter
-      --repeat with n = 1 to 4
       if (byte n of pJson is null) then put 0 into char n of tNulls
    end repeat
 
