@@ -141,7 +141,12 @@ function arrayToJson pArray keepNumeric
       # if keepNumeric is true, then the keys will remain numeric keys
       put "[" into tJSON
       repeat for each element tValue in pArray
-         put jsonValue(tValue) & comma after tJSON
+         --put jsonValue(tValue) & comma after tJSON
+         +if tValue is empty then
+ +           put space after tJSON
+ +        else
+ +           put jsonValue(tValue) & comma after tJSON
+ +        end if
       end repeat
       put "]" into the last char of tJSON
    else
