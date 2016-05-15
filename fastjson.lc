@@ -1,11 +1,12 @@
+script "fastjson"
 <?lc
 ##
 # -------------------------------------------------------------------
-# FASTJSON v1.0.0
+# FASTJSON v1.1.0
 # -------------------------------------------------------------------
 #
 # Bob Hall
-# November 9, 2015
+# May 15, 2016
 #
 # By combining the best of easyjson and libjson and adding in
 # performance enhancements, fastjson improves the speed of encoding
@@ -183,9 +184,20 @@ end jsonFromArray
 # -------------------------------------------------------------------
 #
 ##
-function isJson pJson
-   local n, tDepth
 
+constant kJSONStart = "{"
+constant kJSONEnd = "}"
+constant kJSONArrayStart = "["
+constant kJSONArrayEnd = "]"
+constant kJSONDelimiter = ":"
+constant kValidJSONDelimiters = "{}[],:"
+
+function isJson pJson
+   local n
+   local tObjectCount, tArrayCount
+
+	 put 0 into tObjectCount
+	 put 0 into tArrayCount
    tokenize pJson
 
    repeat for each element tToken in sJson
@@ -197,11 +209,33 @@ function isJson pJson
 
    put 2 into n
    repeat for each element tToken in sJson
-      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then
+      if (sJson[n-1] is not in kValidJSONDelimiters) and (sJson[n] is not in kValidJSONDelimiters) then
+         put sJson[n-3] & return & sJson[n-2] &  return & sJson[n-1] &  return & sJson[n] &  return & sJson[n+1] &  return
          return false
       end if
+      switch tToken
+         case kJSONStart
+            add 1 to tObjectCount
+            break
+         case kJSONEnd
+            subtract 1 from tObjectCount
+            break
+         case kJSONArrayStart
+            add 1 to tArrayCount
+            break
+         case kJSONArrayEnd
+            subtract 1 from tArrayCount
+            break
+      end switch
       add 1 to n
    end repeat
+   if tObjectCount is not 0 then
+      put sNumTokens & cr after msg
+      return "ERR: unbalanced objects:" && tObjectCount
+   end if
+   if tArrayCount is not 0 then
+      return "ERR: unbalanced arrays:" && tArrayCount
+   end if
 
    return true
 end isJson
