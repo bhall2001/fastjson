@@ -198,6 +198,7 @@ constant kJSONDelimiter = ":"
 constant kValidJSONDelimiters = "{}[],:"
 
 function isJson pJson
+   ##local tToken, tDepth
    local n
    local tObjectCount, tArrayCount
 
@@ -213,6 +214,12 @@ function isJson pJson
 
    if tDepth <> 0 then return false
    */
+
+##
+## New code to validate JSON. Catches mis-matched tokens
+## Adds roughly 10% time to fastJson. Still debating in my head if
+## this is worth the extra time verses just a basic check...
+##
 
    put 2 into n
    repeat for each element tToken in sJson
