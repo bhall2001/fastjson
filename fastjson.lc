@@ -414,6 +414,7 @@ private function jsonDecode pString
             replace "\u0022" with quote in pString
             replace "\u005C" with "\" in pString
             -- any others
+            replace "[NUL]" with numtobyte(0) in pString
 
             ##
             # JSON encoders escape unicode characters as "\uHHHH",
@@ -524,6 +525,7 @@ private command tokenize @pJson
    # with all the other unescapes when we parse - jsonDecode()
    replace "\\" with "\u005C" in pJson
    replace "\" & quote with "\u0022" in pJson
+   replace numtobyte(0)  with "[NUL]" in pJson
 
    put 1 into sIndex
    put "" into prevToken
