@@ -30,3 +30,9 @@ To use this library in a Stack I would suggest creating a substack of your main 
      start using stack "fastJson"
 
 For livecode server use, include "fastjson.lc" in your server script.
+
+This project maintained on GitHub at
+https://github.com/bhall2001/fastjson
+
+Please report any bugs you find to
+https://github.com/bhall2001/fastjson/issues

@@ -1,11 +1,12 @@
+script "fastjson"
 <?lc
 ##
 # -------------------------------------------------------------------
-# FASTJSON v0.5.0
+# FASTJSON v1.1.0
 # -------------------------------------------------------------------
 #
 # Bob Hall
-# October 19, 2015
+# May 15, 2016
 #
 # By combining the best of easyjson and libjson and adding in
 # performance enhancements, fastjson improves the speed of encoding
@@ -64,12 +65,15 @@ local sNumTokens=0
 # -------------------------------------------------------------------
 #  JSON to Array
 # -------------------------------------------------------------------
+#
 # Convert a valid JSON data structure to a multi-dimensional Livecode
 # array.
 #
 # Prototype:
 #
 #     put jsonToArray( tJsonData, false, true ) into tArrayData
+#
+# -------------------------------------------------------------------
 #
 ##
 function jsonToArray pJson, asUnicode, pSkipValidation
@@ -115,6 +119,7 @@ end arrayFromJson
 # -------------------------------------------------------------------
 #  Array To JSON
 # -------------------------------------------------------------------
+#
 # Convert a multi-dimensional Livecode array to a valid JSON data
 # structure.
 #
@@ -122,11 +127,13 @@ end arrayFromJson
 #
 #     put arrayToJson( tArrayData ) into tJsonData
 #
+# -------------------------------------------------------------------
+#
 ##
 function arrayToJson pArray keepNumeric
-  local tJSON
-  local tValue
-  local tKey
+   local tJSON
+   local tValue
+   local tKey
 
    if pArray is not an array then return "Parser Error: parameter given is not an array."
    if isNumericalArray(pArray) and keepNumeric is not true then
@@ -134,7 +141,12 @@ function arrayToJson pArray keepNumeric
       # if keepNumeric is true, then the keys will remain numeric keys
       put "[" into tJSON
       repeat for each element tValue in pArray
-         put jsonValue(tValue) & comma after tJSON
+         --put jsonValue(tValue) & comma after tJSON
+         if tValue is empty then
+            put space after tJSON
+         else
+            put jsonValue(tValue) & comma after tJSON
+         end if
       end repeat
       put "]" into the last char of tJSON
    else
@@ -150,8 +162,11 @@ function arrayToJson pArray keepNumeric
 end arrayToJson
 
 ##
+## -------------------------------------------------------------------
 #
 #  Included for compatibility with easyJson scripts
+#
+# -------------------------------------------------------------------
 #
 ##
 function jsonFromArray pJson
@@ -171,26 +186,70 @@ end jsonFromArray
 #        put "ERROR! Not Valid JSON"
 #     end if
 #
+# -------------------------------------------------------------------
+#
 ##
-function isJson pJson
-   local n, tDepth
 
+constant kJSONStart = "{"
+constant kJSONEnd = "}"
+constant kJSONArrayStart = "["
+constant kJSONArrayEnd = "]"
+constant kJSONDelimiter = ":"
+constant kValidJSONDelimiters = "{}[],:"
+
+function isJson pJson
+   ##local tToken, tDepth
+   local n
+   local tObjectCount, tArrayCount
+
+   put 0 into tObjectCount
+   put 0 into tArrayCount
    tokenize pJson
 
+   /*
    repeat for each element tToken in sJson
       if tToken is in "{[" then add 1 to tDepth
       if tToken is in "}]" then subtract 1 from tDepth
    end repeat
 
    if tDepth <> 0 then return false
+   */
+
+##
+## New code to validate JSON. Catches mis-matched tokens
+## Adds roughly 10% time to fastJson. Still debating in my head if
+## this is worth the extra time verses just a basic check...
+##
 
    put 2 into n
    repeat for each element tToken in sJson
-      if (sJson[n-1] is not in "{}[],:") and (sJson[n] is not in "{}[],:") then
+      if (sJson[n-1] is not in kValidJSONDelimiters) and (sJson[n] is not in kValidJSONDelimiters) then
+         put sJson[n-3] & return & sJson[n-2] &  return & sJson[n-1] &  return & sJson[n] &  return & sJson[n+1] &  return
          return false
       end if
+      switch tToken
+         case kJSONStart
+            add 1 to tObjectCount
+            break
+         case kJSONEnd
+            subtract 1 from tObjectCount
+            break
+         case kJSONArrayStart
+            add 1 to tArrayCount
+            break
+         case kJSONArrayEnd
+            subtract 1 from tArrayCount
+            break
+      end switch
       add 1 to n
    end repeat
+   if tObjectCount is not 0 then
+      put sNumTokens & cr after msg
+      return "ERR: unbalanced objects:" && tObjectCount
+   end if
+   if tArrayCount is not 0 then
+      return "ERR: unbalanced arrays:" && tArrayCount
+   end if
 
    return true
 end isJson
@@ -270,9 +329,6 @@ private function jsonToUtf8 @pJson
    local tCounter = "1,2,3,4"
    local bigEndian
 
-   ##
-   # Repeat for each is faster than repeat with
-   #
    repeat for each element n in tCounter
       if (byte n of pJson is null) then put 0 into char n of tNulls
    end repeat
@@ -361,13 +417,6 @@ private function jsonDecode pString
             replace "[NUL]" with numtobyte(0) in pString
 
             ##
-            # REMOVED 10/15/2015 by BobH
-            # Below causing issues with RTF escaped characters.
-            # In general I am removing Unicode support for the time being.
-            #
-            ## if "\u" is in pString then put unicodeEscapes(pString) into pString
-
-            ##
             # JSON encoders escape unicode characters as "\uHHHH",
             # where 'H' is a hexadecimal digit. Convert to UTF8
             #
@@ -386,60 +435,22 @@ private function jsonDecode pString
    end switch
 end jsonDecode
 
+
 ##
-# REMOVED 10/16/2015 by BobH
-# Removed this function. Replaced with code in Json string hanlding
+# -------------------------------------------------------------------
 #
-/*
-private function unicodeEscapes pString
-   put false into inEsc
-   repeat for each char c in pString
-      add 1 to count
-      put c after buffer
-
-      if count < 2 then next repeat
-
-      if buffer is "\u" then put true into inEscape
-
-      if inEscape then
-         if length(buffer) < 6 then
-            next repeat
-         else
-            put numtochar(baseconvert(char 3 to 6 of buffer, 16, 10)) into buffer
-            put false into inEscape
-         end if
-      else
-         put char 1 of buffer after nString
-         delete char 1 of buffer
-      end if
-
-   end repeat
-   put buffer after nString
-   return nString
-end unicodeEscapes
-*/
-
-/*
-This function checks the keys of a LiveCode array,
-and returns TRUE if all the keys are numerical - otherwise, returns false.
-
-@param pArray a LiveCode array
-@return TRUE if the array's keys are all numerical, otherwise FALSE
-*/
+# This function checks the keys of a LiveCode array,
+# and returns TRUE if all the keys are numerical - otherwise, returns false.
+#
+#  @param pArray a LiveCode array
+#  @return TRUE if the array's keys are all numerical, otherwise FALSE
+#
+# -------------------------------------------------------------------
+#
 private function isNumericalArray @pArray
    local tKeys, aKey
    put the keys of pArray into tKeys
-   /*
-   # REMOVED 10/18/2015
-   # the filter command returns true if there is a number in the string anywhere
-   #
-   filter tKeys without "[0-9]*"
-   if the number of lines in tKeys > 0 then
-      return false
-   else
-      return true
-   end if
-   */
+
    repeat for each line aKey in tKeys
       if aKey is not a number then
          -- as soon as we don't get a number, get outa here!
@@ -450,14 +461,19 @@ private function isNumericalArray @pArray
    return true
 end isNumericalArray
 
-/*
-This function takes a LiveCode value, and produces a string representing
-a valid JSON 'value', as per http://www.json.org/.
-@param pValue any LiveCode value: array, string, number, date, colour, boolean, etc.
-@return a string representing a valid and comparable JSON 'value' - JSON values are:
-        number, string, boolean, array or object.
-        LiveCode 'empty' returns JSON 'null'.
-*/
+##
+# -------------------------------------------------------------------
+#
+# This function takes a LiveCode value, and produces a string representing
+# a valid JSON 'value', as per http://www.json.org/.
+#  @param pValue any LiveCode value: array, string, number, date, colour, boolean, etc.
+#  @return a string representing a valid and comparable JSON 'value' - JSON values are:
+#        number, string, boolean, array or object.
+#        LiveCode 'empty' returns JSON 'null'.
+#
+# -------------------------------------------------------------------
+#
+
 private function jsonValue pValue
    switch
       case pValue is an array
@@ -514,17 +530,6 @@ private command tokenize @pJson
    put 1 into sIndex
    put "" into prevToken
    repeat for each token tToken in pJson
-      ## I've removed the following.
-      ## debugging an Json where we have
-      ## "name":"-",
-      ## this appears to trip up the tokenizer
-      /*
-      if tToken is in "+-" then -- needed for numbers in json
-         # since "+" & "-" are rev tokens, but not jSon tokens,
-         # we have to prepend them to the next token
-         put tToken into prevToken
-      else*/
-
       switch
          case tToken is in "+-"
             # since "+" & "-" are rev tokens, but not jSon tokens,
