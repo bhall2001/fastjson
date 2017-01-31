@@ -13,8 +13,8 @@ I am combining routines from both of these libraries to give us a decent boost i
 
 There are 3 calls that you will make from your Livecode scripts.
 
-      arrayToJson(tArrayData)
-      jsonToArray(tJsonData, asUnicode, skipValidation)
+      fast.arrayToJson(tArrayData)
+      fast.jsonToArray(tJsonData, [asUnicode], [skipValidation])
       isJson(tJsonData)
 
 NOTE:
