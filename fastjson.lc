@@ -27,8 +27,8 @@ script "fastjson"
 #
 # There are 3 calls that you will make from your Livecode scripts.
 #
-#     fast.arrayToJson(pArrayData, keepNumeric)
-#     fast.jsonToArray(pJsonData, asUnicode, skipValidation)
+#     fast.arrayToJson(pArrayData, [keepNumeric])
+#     fast.jsonToArray(pJsonData, [asUnicode], [skipValidation])
 #     isJson(pJsonData)
 #
 # NOTE:
