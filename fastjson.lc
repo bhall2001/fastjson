@@ -2,7 +2,7 @@ script "fastjson"
 <?lc
 ##
 # -------------------------------------------------------------------
-# FASTJSON v1.1.1
+# FASTJSON v1.1.2
 # -------------------------------------------------------------------
 #
 # Bob Hall
@@ -27,8 +27,8 @@ script "fastjson"
 #
 # There are 3 calls that you will make from your Livecode scripts.
 #
-#     arrayToJson(pArrayData, keepNumeric)
-#     jsonToArray(pJsonData, asUnicode, skipValidation)
+#     fast.arrayToJson(pArrayData, keepNumeric)
+#     fast.jsonToArray(pJsonData, asUnicode, skipValidation)
 #     isJson(pJsonData)
 #
 # NOTE:
@@ -71,12 +71,12 @@ local sNumTokens=0
 #
 # Prototype:
 #
-#     put jsonToArray( tJsonData, false, true ) into tArrayData
+#     put fast.jsonToArray( tJsonData, false, true ) into tArrayData
 #
 # -------------------------------------------------------------------
 #
 ##
-function jsonToArray pJson, asUnicode, pSkipValidation
+function fast.jsonToArray pJson, asUnicode, pSkipValidation
    local tJson = ""
    local tArray = ""
 
@@ -104,7 +104,7 @@ function jsonToArray pJson, asUnicode, pSkipValidation
 
    put empty into sJson
    return tArray
-end jsonToArray
+end fast.jsonToArray
 
 ##
 #
@@ -112,7 +112,7 @@ end jsonToArray
 #
 ##
 function arrayFromJson pJson
-   return jsonToArray(pJson)
+   return fast.jsonToArray(pJson)
 end arrayFromJson
 
 ##
@@ -130,7 +130,7 @@ end arrayFromJson
 # -------------------------------------------------------------------
 #
 ##
-function arrayToJson pArray keepNumeric
+function fast.arrayToJson pArray keepNumeric
    local tJSON
    local tValue
    local tKey
@@ -159,7 +159,7 @@ function arrayToJson pArray keepNumeric
       put "}" into the last char of tJSON
    end if
    return tJSON
-end arrayToJson
+end fast.arrayToJson
 
 ##
 ## -------------------------------------------------------------------
@@ -170,7 +170,7 @@ end arrayToJson
 #
 ##
 function jsonFromArray pJson
-   return arrayToJson(pJson)
+   return fast.arrayToJson(pJson)
 end jsonFromArray
 
 ##
@@ -477,7 +477,7 @@ private function jsonValue pValue
    switch
       case pValue is an array
          # this allows us to have nested JSON objects and arrays:
-         return arrayToJson(pValue)
+         return fast.arrayToJson(pValue)
          break
       case pValue is empty
          return "null"
