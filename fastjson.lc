@@ -2,11 +2,12 @@ script "fastjson"
 <?lc
 ##
 # -------------------------------------------------------------------
-# FASTJSON v1.1.1
+# FASTJSON v1.5.0
 # -------------------------------------------------------------------
 #
-# Bob Hall
-# May 15, 2016
+# Bob Hall   May 15, 2016
+#
+# Modified by Gregory Miller  August 23, 2017
 #
 # By combining the best of easyjson and libjson and adding in
 # performance enhancements, fastjson improves the speed of encoding
@@ -27,8 +28,8 @@ script "fastjson"
 #
 # There are 3 calls that you will make from your Livecode scripts.
 #
-#     arrayToJson(pArrayData, keepNumeric)
-#     jsonToArray(pJsonData, asUnicode, skipValidation)
+#     fast.arrayToJson(pArrayData, [keepNumeric])
+#     fast.jsonToArray(pJsonData, [asUnicode], [skipValidation])
 #     isJson(pJsonData)
 #
 # NOTE:
@@ -60,6 +61,9 @@ local sOutputUnicode=""
 local sJson=""
 local sIndex=0
 local sNumTokens=0
+local sKeepNumeric=false   --set to keep numeric arrays as json objects instead of arrays
+local sFillTheBlanks=false   --set to fill in the blanks between numbers out of order in numeric arrays
+local sNull=false    --set to treat the text "null" as the value null 
 
 ##
 # -------------------------------------------------------------------
@@ -71,48 +75,44 @@ local sNumTokens=0
 #
 # Prototype:
 #
-#     put jsonToArray( tJsonData, false, true ) into tArrayData
+#     put fast.jsonToArray( tJsonData, false, true ) into tArrayData
 #
 # -------------------------------------------------------------------
 #
 ##
-function jsonToArray pJson, asUnicode, pSkipValidation
-   local tJson = ""
-   local tArray = ""
+function fast.jsonToArray pJson, asUnicode, pSkipValidation
+  local tJson = ""
+  local tArray = ""
+  
+  put asUnicode is true into sOutputUnicode
+  put jsonToUtf8(pJson) into tJson
+  
+  if tJson begins with "fastJson-error" then return tJson
+  
+  if pSkipValidation then
+    tokenize tJson
+  else
+    if not isJson(tJson) then -- isJson will tokenize tJson for us
+      return false
+    end if
+  end if
+  
+  //if the result is not empty then return the result
+  put 0 into sIndex
+  if sJson[1] = "[" then
+    add 1 to sIndex
+    put jArraytoArray() into tArray
+  else
+    put jObjectToArray() into tArray
+  end if
+  
+  put empty into sJson
+  return tArray
+end fast.jsonToArray
 
-   put asUnicode is true into sOutputUnicode
-   put jsonToUtf8(pJson) into tJson
-
-   if tJson begins with "fastJson-error" then return tJson
-
-   if pSkipValidation then
-      tokenize tJson
-   else
-      if not isJson(tJson) then -- isJson will tokenize tJson for us
-         return false
-      end if
-   end if
-
-   //if the result is not empty then return the result
-   put 0 into sIndex
-   if sJson[1] = "[" then
-      add 1 to sIndex
-      put jArraytoArray() into tArray
-   else
-      put jObjectToArray() into tArray
-   end if
-
-   put empty into sJson
-   return tArray
-end jsonToArray
-
-##
-#
 #  Included for compatibility with easyJson scripts
-#
-##
 function arrayFromJson pJson
-   return jsonToArray(pJson)
+  return fast.jsonToArray(pJson)
 end arrayFromJson
 
 ##
@@ -130,47 +130,46 @@ end arrayFromJson
 # -------------------------------------------------------------------
 #
 ##
-function arrayToJson pArray keepNumeric
-   local tJSON
-   local tValue
-   local tKey
-
+function fast.arrayToJson pArray pkeepNumeric pfillTheBlanks
+   local tJSON,  tValue, tKey, tArrayList
+   if pkeepNumeric is not empty then put pkeepNumeric into sKeepNumeric
+   if pfillTheBlanks is not empty  then put pfillTheBlanks into sFillTheBlanks
+   
    if pArray is not an array then return "Parser Error: parameter given is not an array."
-   if isNumericalArray(pArray) and keepNumeric is not true then
+   if isNumericalArray(pArray) and keepNumeric is not true and sFillTheBlanks then
+      put fillBlanks(pArray) into pArray
+   end if
+   if isNumericalArray(pArray) and sKeepNumeric is not true then
       # the array's keys are all *numerical*, so the root element will be a JSON *array*
       # if keepNumeric is true, then the keys will remain numeric keys
       put "[" into tJSON
-      repeat for each element tValue in pArray
-         --put jsonValue(tValue) & comma after tJSON
+      put the keys of pArray into tArrayList
+      sort tArrayList numeric
+      repeat for each line tValue in tArrayList
          if tValue is empty then
             put space after tJSON
          else
-            put jsonValue(tValue) & comma after tJSON
+            put jsonValue(pArray[tValue]) & comma after tJSON
          end if
       end repeat
       put "]" into the last char of tJSON
    else
       # the array's keys are not all numerical, so the root element will be a JSON *object*
-      put "{" into tJSON
-      repeat for each key tKey in pArray
+     put "{" into tJSON
+     put the keys of pArray into tArrayList
+     sort tArrayList
+      repeat for each line tKey in tArrayList
          # all JSON object keys are double-quoted strings:
          put quote & tKey & quote & ":" & jsonValue(pArray[tKey]) & comma after tJSON
       end repeat
       put "}" into the last char of tJSON
    end if
    return tJSON
-end arrayToJson
+end fast.arrayToJson
 
-##
-## -------------------------------------------------------------------
-#
 #  Included for compatibility with easyJson scripts
-#
-# -------------------------------------------------------------------
-#
-##
 function jsonFromArray pJson
-   return arrayToJson(pJson)
+   return fast.arrayToJson(pJson)
 end jsonFromArray
 
 ##
@@ -190,248 +189,237 @@ end jsonFromArray
 #
 ##
 
-constant kJSONStart = "{"
-constant kJSONEnd = "}"
-constant kJSONArrayStart = "["
-constant kJSONArrayEnd = "]"
-constant kJSONDelimiter = ":"
-constant kValidJSONDelimiters = "{}[],:"
-
 function isJson pJson
-   ##local tToken, tDepth
-   local n
-   local tObjectCount, tArrayCount
+     ##local tToken, tDepth
+     constant kJSONStart = "{"
+     local kJSONEnd = "}"
+     local kJSONArrayStart = "["
+     local kJSONArrayEnd = "]"
+     local kJSONDelimiter = ":"
+     local kValidJSONDelimiters = "{}[],:"
+     local n
+     local tObjectCount = 0 
+     local tArrayCount = 0
+     
+     tokenize pJson
 
-   put 0 into tObjectCount
-   put 0 into tArrayCount
-   tokenize pJson
-
-   /*
-   repeat for each element tToken in sJson
-      if tToken is in "{[" then add 1 to tDepth
-      if tToken is in "}]" then subtract 1 from tDepth
-   end repeat
-
-   if tDepth <> 0 then return false
-   */
-
-##
-## New code to validate JSON. Catches mis-matched tokens
-## Adds roughly 10% time to fastJson. Still debating in my head if
-## this is worth the extra time verses just a basic check...
-##
-
-   put 2 into n
-   repeat for each element tToken in sJson
-      if (sJson[n-1] is not in kValidJSONDelimiters) and (sJson[n] is not in kValidJSONDelimiters) then
-         return false
-      end if
-      switch tToken
-         case kJSONStart
-            add 1 to tObjectCount
-            break
-         case kJSONEnd
-            subtract 1 from tObjectCount
-            break
-         case kJSONArrayStart
-            add 1 to tArrayCount
-            break
-         case kJSONArrayEnd
-            subtract 1 from tArrayCount
-            break
-      end switch
-      add 1 to n
-   end repeat
-   if tObjectCount is not 0 then
-      put sNumTokens & cr after msg
-      return "ERR: unbalanced objects:" && tObjectCount
-   end if
-   if tArrayCount is not 0 then
-      return "ERR: unbalanced arrays:" && tArrayCount
-   end if
-
-   return true
+     ##
+     ## New code to validate JSON. Catches mis-matched tokens
+     ## Adds roughly 10% time to fastJson. Still debating in my head if
+     ## this is worth the extra time verses just a basic check...
+     ##
+     
+     put 2 into n
+     repeat for each element tToken in sJson
+          if (sJson[n-1] is not in kValidJSONDelimiters) and (sJson[n] is not in kValidJSONDelimiters) then
+               return false
+          end if
+          switch tToken
+               case kJSONStart
+                    add 1 to tObjectCount
+                    break
+               case kJSONEnd
+                    subtract 1 from tObjectCount
+                    break
+               case kJSONArrayStart
+                    add 1 to tArrayCount
+                    break
+               case kJSONArrayEnd
+                    subtract 1 from tArrayCount
+                    break
+          end switch
+          add 1 to n
+     end repeat
+     if tObjectCount is not 0 then
+          put sNumTokens & cr after msg
+          return "ERR: unbalanced objects:" && tObjectCount
+     end if
+     if tArrayCount is not 0 then
+          return "ERR: unbalanced arrays:" && tArrayCount
+     end if
+     
+     return true
 end isJson
 
 
 private function jObjectToArray
-   local tArray
-   local tName
-
-   put empty into tArray
-
-   -- using a repeat forever with a conditional got small improvement
-   repeat forever
-      if sIndex > sNumTokens then exit repeat
-      add 1 to sIndex
-
-      switch sJson[sIndex]
-         case "{"
-            put jsonDecode(sJson[sIndex + 1]) into tName
-            add 1 to sIndex -- we can skip ahead
-            break
-         case ":"
-            if sJson[sIndex + 1] is not "{" then
-               put jsonDecode(sJson[sIndex + 1]) into tArray[tName]
-            else
-               put jObjectToArray() into tArray[tName]
-            end if
-            break
-         case "}"
-            return tArray
-            break
-         case "["
-            put jArrayToArray() into tArray[tName]
-            break
-         case comma -- must be after "[" or will mess up jArrays
-            put jsonDecode(sJson[sIndex + 1]) into tName
-            add 1 to sIndex -- we can skip ahead
-            break
-      end switch
-
-   end repeat
-   return tArray
+  local tArray
+  local tName
+  
+  put empty into tArray
+  
+  -- using a repeat forever with a conditional got small improvement
+  repeat forever
+    if sIndex > sNumTokens then exit repeat
+    add 1 to sIndex
+    
+    switch sJson[sIndex]
+      case "{"
+        put jsonDecode(sJson[sIndex + 1]) into tName
+        add 1 to sIndex -- we can skip ahead
+        break
+      case ":"
+        if sJson[sIndex + 1] is not "{" then
+          put jsonDecode(sJson[sIndex + 1]) into tArray[tName]
+        else
+          put jObjectToArray() into tArray[tName]
+        end if
+        break
+      case "}"
+        return tArray
+        break
+      case "["
+        put jArrayToArray() into tArray[tName]
+        break
+      case comma -- must be after "[" or will mess up jArrays
+        put jsonDecode(sJson[sIndex + 1]) into tName
+        add 1 to sIndex -- we can skip ahead
+        break
+    end switch
+    
+  end repeat
+  return tArray
 end jObjectToArray
 
 private function jArrayToArray
-   local tKey=0
-   local tArray=""
-
-   repeat while sIndex <= sNumTokens
-      add 1 to sIndex
-
-      switch sJson[sIndex]
-         case "]"
-            return tArray
-            break
-         case comma
-            next repeat
-            break
-         case "{"
-            add 1 to tKey
-            subtract 1 from sIndex
-            put jObjectToArray() into tArray[tKey]
-            break
-         case "["
-            add 1 to tKey
-            put jArrayToArray() into tArray[tKey]
-            break
-         default
-            add 1 to tKey
-            put jsonDecode(sJson[sIndex]) into tArray[tKey]
-      end switch
-   end repeat
+  local tKey=0
+  local tArray=""
+  
+  repeat while sIndex <= sNumTokens
+    add 1 to sIndex
+    
+    switch sJson[sIndex]
+      case "]"
+        return tArray
+        break
+      case comma
+        next repeat
+        break
+      case "{"
+        add 1 to tKey
+        subtract 1 from sIndex
+        put jObjectToArray() into tArray[tKey]
+        break
+      case "["
+        add 1 to tKey
+        put jArrayToArray() into tArray[tKey]
+        break
+      default
+        add 1 to tKey
+        put jsonDecode(sJson[sIndex]) into tArray[tKey]
+    end switch
+  end repeat
 end jArrayToArray
 
 private function jsonToUtf8 @pJson
-   local tNulls = "1111"
-   local tCounter = "1,2,3,4"
-   local bigEndian
-
-   repeat for each element n in tCounter
-      if (byte n of pJson is null) then put 0 into char n of tNulls
-   end repeat
-
-   put (char 1 of (binaryencode("I",1)) is null) into bigEndian
-
-   switch tNulls
-      case "1111"  -- UTF-8
-         return pJson
-         break
-      case "0101"  -- UTF-16BE
-         if bigEndian then
-            return utf8encode(pJson, true)
-         else
-            return utf8encode(swapEndianness(pJson), true)
-         end if
-         break
-      case "1010"  -- UTF-16LE
-         if not bigEndian then
-            return utf8encode(pJson, true)
-         else
-            return utf8encode(swapEndianness(pJson), true)
-         end if
-         break
-      case "0001"  -- UTF-32BE
-         return "fastJson-error: 4 byte unicode, can't decode"
-         break
-      case "1000"  -- UTF-32LE
-         return "fastJson-error: 4 byte unicode, can't decode"
-         break
-   end switch
+  local tNulls = "1111"
+  local tCounter = "1,2,3,4"
+  local bigEndian
+  
+  repeat for each element n in tCounter
+    if (byte n of pJson is null) then put 0 into char n of tNulls
+  end repeat
+  
+  put (char 1 of (binaryencode("I",1)) is null) into bigEndian
+  
+  switch tNulls
+    case "1111"  -- UTF-8
+      return pJson
+      break
+    case "0101"  -- UTF-16BE
+      if bigEndian then
+        return utf8encode(pJson, true)
+      else
+        return utf8encode(swapEndianness(pJson), true)
+      end if
+      break
+    case "1010"  -- UTF-16LE
+      if not bigEndian then
+        return utf8encode(pJson, true)
+      else
+        return utf8encode(swapEndianness(pJson), true)
+      end if
+      break
+    case "0001"  -- UTF-32BE
+      return "fastJson-error: 4 byte unicode, can't decode"
+      break
+    case "1000"  -- UTF-32LE
+      return "fastJson-error: 4 byte unicode, can't decode"
+      break
+  end switch
 end jsonToUtf8
 
 private function utf8encode pString, pIsUnicode
-   if pIsUnicode then
-      return unidecode(pString, "UTF8")
-   else
-      return unidecode(uniencode(pString),"UTF8")
-   end if
+  if pIsUnicode then
+    return unidecode(pString, "UTF8")
+  else
+    return unidecode(uniencode(pString),"UTF8")
+  end if
 end utf8encode
 
 private function utf8decode pString, pToUnicode
-   if pToUnicode then
-      return uniencode(pString,"UTF8")
-   else
-      return unidecode(uniencode(pString,"UTF8"))
-   end if
+  if pToUnicode then
+    return uniencode(pString,"UTF8")
+  else
+    return unidecode(uniencode(pString,"UTF8"))
+  end if
 end utf8decode
 
 private function jsonDecode pString
-   local tCode
-   local tChar
-
-   switch pString
-      case "false"
-         return "false"
-         break
-      case "true"
-         return "true"
-         break
-         #
-         # SPECIAL CASE. Need to catch this in JSON or performace takes a hit.
-         #
-      case ""
-         return empty
-         break
-      case "null"
-         return empty
-         break
-      default
-         if pString is a number then
-            return pString
-         else
-            replace "\" & quote with quote in pString
-            replace "\\" with "\" in pString
-            replace "\b" with numtochar(8) in pString
-            replace "\t" with numtochar(9) in pString
-            replace "\f" with numtochar(12) in pString
-            replace "\r" with numtochar(13) in pString
-            replace "\n" with numtochar(10) in pString
-
-            -- some more common unicode escapees
-            replace "\u0022" with quote in pString
-            replace "\u005C" with "\" in pString
-            -- any others
-            replace "[NUL]" with numtobyte(0) in pString
-
-            ##
-            # JSON encoders escape unicode characters as "\uHHHH",
-            # where 'H' is a hexadecimal digit. Convert to UTF8
-            #
-            repeat while matchtext(pString,"\\u([0-9A-Fa-f]{4})",tCode)
-               set the useunicode to true
-               put unidecode(numtochar(baseconvert(tCode,16,10)),"UTF8") into tChar
-               replace ("\u" & tCode) with tChar in pString
-            end repeat
-
-            if not sOutputUnicode then
-               return utf8decode(pString)
-            else
-               return pString
-            end if
-         end if
-   end switch
+  local tCode
+  local tChar
+  
+  switch pString
+    case "false"
+      return "false"
+      break
+    case "true"
+      return "true"
+      break
+      #
+      # SPECIAL CASE. Need to catch this in JSON or performace takes a hit.
+      #
+    case ""
+      return empty
+      break
+   case "null"
+      if sNull then return "null" else return empty
+      break
+    default
+      if pString is a number then
+        return pString
+      else
+        replace "\" & quote with quote in pString
+        replace "\\" with "\" in pString
+        replace "\b" with numtochar(8) in pString
+        replace "\t" with numtochar(9) in pString
+        replace "\f" with numtochar(12) in pString
+        replace "\r" with numtochar(13) in pString
+        replace "\n" with numtochar(10) in pString
+        
+        -- some more common unicode escapees
+        replace "\u0022" with quote in pString
+        replace "\u005C" with "\" in pString
+        -- any others
+        replace "[NUL]" with numtobyte(0) in pString
+        
+        ##
+        # JSON encoders escape unicode characters as "\uHHHH",
+        # where 'H' is a hexadecimal digit. Convert to UTF8
+        #
+        repeat while matchtext(pString,"\\u([0-9A-Fa-f]{4})",tCode)
+          set the useunicode to true
+          put unidecode(numtochar(baseconvert(tCode,16,10)),"UTF8") into tChar
+          replace ("\u" & tCode) with tChar in pString
+        end repeat
+        
+        if not sOutputUnicode then
+          return utf8decode(pString)
+        else
+          return pString
+        end if
+      end if
+  end switch
 end jsonDecode
 
 
@@ -474,10 +462,11 @@ end isNumericalArray
 #
 
 private function jsonValue pValue
+   if sNull and pValue is "null" then put empty into pValue
    switch
       case pValue is an array
          # this allows us to have nested JSON objects and arrays:
-         return arrayToJson(pValue)
+         return fast.arrayToJson(pValue)
          break
       case pValue is empty
          return "null"
@@ -514,44 +503,56 @@ private function jsonValue pValue
 end jsonValue
 
 private command tokenize @pJson
-   local prevToken
-
-   put empty into sJson
-   put 0 into sNumTokens
-
-   # escaped quotes < \" > and reverse-solidus < \\ > will confuse the tokenizer
-   # so we replace them with "\u0022" and "\u005C" which we'll unescape
-   # with all the other unescapes when we parse - jsonDecode()
-   replace "\\" with "\u005C" in pJson
-   replace "\" & quote with "\u0022" in pJson
-   replace numtobyte(0)  with "[NUL]" in pJson
-
-   put 1 into sIndex
-   put "" into prevToken
-   repeat for each token tToken in pJson
-      switch
-         case tToken is in "+-"
-            # since "+" & "-" are rev tokens, but not jSon tokens,
-            # we have to prepend them to the next token
-            put tToken after prevToken
-            break
-         case (prevToken is in "+-") and (tToken is not a number)
-            add 1 to sNumTokens
-            put prevToken into sJson[sNumTokens]
-            put "" into prevToken
-            add 1 to sNumTokens
-            put tToken into sJson[sNumTokens]
-            break
-         default
-            add 1 to sNumTokens
-            put prevToken & tToken into sJson[sNumTokens]
-            put "" into prevToken
-      end switch
-    end repeat
+  local prevToken
+  
+  put empty into sJson
+  put 0 into sNumTokens
+  
+  # escaped quotes < \" > and reverse-solidus < \\ > will confuse the tokenizer
+  # so we replace them with "\u0022" and "\u005C" which we'll unescape
+  # with all the other unescapes when we parse - jsonDecode()
+  replace "\\" with "\u005C" in pJson
+  replace "\" & quote with "\u0022" in pJson
+  replace numtobyte(0)  with "[NUL]" in pJson
+  
+  put 1 into sIndex
+  put "" into prevToken
+  repeat for each token tToken in pJson
+    switch
+      case tToken is in "+-"
+        # since "+" & "-" are rev tokens, but not jSon tokens,
+        # we have to prepend them to the next token
+        put tToken after prevToken
+        break
+      case (prevToken is in "+-") and (tToken is not a number)
+        add 1 to sNumTokens
+        put prevToken into sJson[sNumTokens]
+        put "" into prevToken
+        add 1 to sNumTokens
+        put tToken into sJson[sNumTokens]
+        break
+      default
+        add 1 to sNumTokens
+        put prevToken & tToken into sJson[sNumTokens]
+        put "" into prevToken
+    end switch
+  end repeat
 end tokenize
 
 function numTokens @pJson
-   tokenize pJson
-
-   return sNumTokens
+  tokenize pJson
+  
+  return sNumTokens
 end numTokens
+
+private function fillBlanks pArray
+   local tKeyList, tKey, tLast
+   put the keys of pArray into tKeyList
+   sort tKeyList numeric
+   put the last line of tKeyList into tLast
+   repeat with tKey=1 to tLast
+      if pArray[tKey] is empty then put "null" into pArray[tKey]
+   end repeat
+   return pArray
+end fillBlanks
+
